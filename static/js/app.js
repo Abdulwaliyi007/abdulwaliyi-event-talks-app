@@ -17,7 +17,8 @@ const state = {
 // ==========================================================================
 
 const DOM = {
-    themeToggle: document.getElementById('btn-theme-toggle'),
+    themeCheckbox: document.getElementById('checkbox-theme'),
+    btnExportCSV: document.getElementById('btn-export-csv'),
     btnRefresh: document.getElementById('btn-refresh'),
     btnRefreshText: document.getElementById('btn-refresh-text'),
     refreshIcon: document.getElementById('refresh-icon'),
@@ -85,7 +86,14 @@ function setupEventListeners() {
     DOM.btnResetAll.addEventListener('click', resetAllFilters);
     
     // Theme Toggle
-    DOM.themeToggle.addEventListener('click', toggleTheme);
+    if (DOM.themeCheckbox) {
+        DOM.themeCheckbox.addEventListener('change', toggleTheme);
+    }
+    
+    // Export CSV
+    if (DOM.btnExportCSV) {
+        DOM.btnExportCSV.addEventListener('click', exportToCSV);
+    }
     
     // Search input
     DOM.searchInput.addEventListener('input', (e) => {
@@ -333,6 +341,13 @@ function renderTimeline() {
                     ${update.html}
                 </div>
                 <div class="update-card-footer">
+                    <button class="btn-card-action btn-copy-text" title="Copy update description text to clipboard">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        Copy Text
+                    </button>
                     <button class="btn-card-action btn-copy-link" data-link="${entry.link}" title="Copy link to Google Cloud Release page">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
@@ -349,6 +364,16 @@ function renderTimeline() {
                 </div>
             `;
             
+            // Text copy action
+            card.querySelector('.btn-copy-text').addEventListener('click', (e) => {
+                navigator.clipboard.writeText(update.text).then(() => {
+                    showToast('Description copied to clipboard!');
+                }).catch(err => {
+                    console.error('Copy failed', err);
+                    showToast('Failed to copy description');
+                });
+            });
+
             // Link copy action
             card.querySelector('.btn-copy-link').addEventListener('click', (e) => {
                 navigator.clipboard.writeText(entry.link).then(() => {
@@ -492,12 +517,57 @@ function initTheme() {
     const savedTheme = localStorage.getItem('bq-notes-theme') || 'dark';
     state.theme = savedTheme;
     document.body.className = `theme-${savedTheme}`;
+    if (DOM.themeCheckbox) {
+        DOM.themeCheckbox.checked = (savedTheme === 'dark');
+    }
 }
 
-function toggleTheme() {
-    state.theme = state.theme === 'dark' ? 'light' : 'dark';
+function toggleTheme(e) {
+    if (e && e.target) {
+        state.theme = e.target.checked ? 'dark' : 'light';
+    } else {
+        state.theme = state.theme === 'dark' ? 'light' : 'dark';
+    }
     document.body.className = `theme-${state.theme}`;
     localStorage.setItem('bq-notes-theme', state.theme);
+    if (DOM.themeCheckbox) {
+        DOM.themeCheckbox.checked = (state.theme === 'dark');
+    }
+}
+
+function exportToCSV() {
+    if (state.filteredNotes.length === 0) {
+        showToast('No updates to export');
+        return;
+    }
+    
+    let csvRows = [];
+    csvRows.push(['Date', 'URL Link', 'Type', 'Description'].map(h => `"${h}"`).join(','));
+    
+    state.filteredNotes.forEach(entry => {
+        entry.updates.forEach(up => {
+            const cleanText = up.text.replace(/"/g, '""').replace(/\s+/g, ' ').trim();
+            const row = [
+                entry.date,
+                entry.link,
+                up.type,
+                cleanText
+            ].map(val => `"${val}"`).join(',');
+            csvRows.push(row);
+        });
+    });
+    
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `bigquery_release_notes_${new Date().toISOString().slice(0,10)}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('CSV downloaded successfully!');
 }
 
 function resetAllFilters() {
