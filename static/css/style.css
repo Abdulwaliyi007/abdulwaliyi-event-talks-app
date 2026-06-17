@@ -1216,3 +1216,31 @@ input:checked + .slider:before {
 .theme-light .switch-moon-icon {
     color: #3b82f6;
 }
+
+/* Search match highlights */
+mark.highlight {
+    background-color: rgba(245, 158, 11, 0.25); /* Translucent amber */
+    color: inherit;
+    border-bottom: 2px solid #f59e0b;
+    padding: 0 1px;
+    border-radius: 2px;
+}
+.theme-light mark.highlight {
+    background-color: rgba(245, 158, 11, 0.4);
+}
+
+/* Interactive stats breakdown hover details */
+.stat-row.interactive-stat {
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    transition: all var(--transition-fast);
+    border: 1px solid transparent;
+}
+.stat-row.interactive-stat:hover {
+    background-color: var(--bg-primary);
+    border-color: var(--border-color);
+    transform: translateX(3px);
+}
+.stat-row.interactive-stat:active {
+    transform: translateX(0);
+}

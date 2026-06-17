@@ -282,7 +282,8 @@ function renderStats() {
         .forEach(([type, count]) => {
             const config = TYPE_CONFIG[type] || TYPE_CONFIG['General'];
             const row = document.createElement('div');
-            row.className = 'stat-row';
+            row.className = 'stat-row interactive-stat';
+            row.title = `Click to filter by ${type}`;
             row.innerHTML = `
                 <span class="stat-row-lbl">
                     <span class="stat-dot-indicator" style="background-color: ${config.color}"></span>
@@ -290,6 +291,16 @@ function renderStats() {
                 </span>
                 <span class="stat-row-val">${count}</span>
             `;
+            
+            row.addEventListener('click', () => {
+                const chips = DOM.typeFiltersContainer.querySelectorAll('.filter-chip');
+                chips.forEach(chip => {
+                    if (chip.getAttribute('data-type').toLowerCase() === type.toLowerCase()) {
+                        chip.click();
+                    }
+                });
+            });
+            
             DOM.statsBreakdownList.appendChild(row);
         });
 }
@@ -300,6 +311,57 @@ function renderTimeline() {
     if (state.filteredNotes.length === 0) {
         DOM.timelineFeed.classList.add('hidden');
         DOM.emptyState.classList.remove('hidden');
+        
+        // Update empty state messaging dynamically
+        const titleEl = document.getElementById('empty-state-title');
+        const descEl = document.getElementById('empty-state-desc');
+        const actionsEl = document.getElementById('empty-state-actions');
+        
+        let filterTypeStr = state.activeTypeFilter === 'all' ? '' : `${state.activeTypeFilter} `;
+        let searchStr = state.searchQuery ? ` matching "${state.searchQuery}"` : '';
+        
+        if (titleEl) titleEl.textContent = `No ${filterTypeStr}updates found${searchStr}`;
+        if (descEl) descEl.textContent = 'Try adjusting your search terms or filters to find what you are looking for.';
+        
+        // Build context actions dynamically
+        if (actionsEl) {
+            actionsEl.innerHTML = '';
+            if (state.searchQuery) {
+                const clearSearchBtn = document.createElement('button');
+                clearSearchBtn.className = 'btn btn-secondary';
+                clearSearchBtn.textContent = 'Clear Search';
+                clearSearchBtn.addEventListener('click', () => {
+                    DOM.searchInput.value = '';
+                    state.searchQuery = '';
+                    toggleClearSearchButton();
+                    applyFiltersAndRender();
+                });
+                actionsEl.appendChild(clearSearchBtn);
+            }
+            
+            if (state.activeTypeFilter !== 'all') {
+                const clearFilterBtn = document.createElement('button');
+                clearFilterBtn.className = 'btn btn-secondary';
+                clearFilterBtn.textContent = 'Clear Type Filter';
+                clearFilterBtn.addEventListener('click', () => {
+                    const chips = DOM.typeFiltersContainer.querySelectorAll('.filter-chip');
+                    chips.forEach(c => c.classList.remove('active'));
+                    chips[0].classList.add('active');
+                    state.activeTypeFilter = 'all';
+                    toggleClearFiltersButton();
+                    applyFiltersAndRender();
+                });
+                actionsEl.appendChild(clearFilterBtn);
+            }
+            
+            if (state.searchQuery && state.activeTypeFilter !== 'all') {
+                const resetAllBtn = document.createElement('button');
+                resetAllBtn.className = 'btn btn-primary';
+                resetAllBtn.textContent = 'Reset All';
+                resetAllBtn.addEventListener('click', resetAllFilters);
+                actionsEl.appendChild(resetAllBtn);
+            }
+        }
         return;
     }
     
@@ -314,10 +376,14 @@ function renderTimeline() {
         dot.className = 'timeline-dot';
         entryEl.appendChild(dot);
         
-        // Date Header
+        // Date Header with Relative Date Badge
         const dateHeader = document.createElement('h3');
         dateHeader.className = 'timeline-date';
-        dateHeader.textContent = entry.date;
+        
+        const relativeStr = getRelativeDateString(entry.updated, entry.date);
+        const relativeBadgeHTML = relativeStr ? `<span class="results-count" style="font-size: 0.75rem; background-color: var(--accent-light); border-color: var(--accent); color: var(--text-primary); margin-left: 0.5rem;">${relativeStr}</span>` : '';
+        
+        dateHeader.innerHTML = `${entry.date}${relativeBadgeHTML}`;
         entryEl.appendChild(dateHeader);
         
         // List of update cards
@@ -364,20 +430,32 @@ function renderTimeline() {
                 </div>
             `;
             
+            // Apply highlighting to text nodes safely
+            if (state.searchQuery) {
+                const contentEl = card.querySelector('.update-card-content');
+                highlightTextNodes(contentEl, state.searchQuery);
+            }
+            
             // Text copy action
-            card.querySelector('.btn-copy-text').addEventListener('click', (e) => {
+            const copyTextBtn = card.querySelector('.btn-copy-text');
+            const copyTextBtnHTML = copyTextBtn.innerHTML;
+            copyTextBtn.addEventListener('click', (e) => {
                 navigator.clipboard.writeText(update.text).then(() => {
                     showToast('Description copied to clipboard!');
+                    animateButtonFeedback(copyTextBtn, copyTextBtnHTML);
                 }).catch(err => {
                     console.error('Copy failed', err);
                     showToast('Failed to copy description');
                 });
             });
-
+            
             // Link copy action
-            card.querySelector('.btn-copy-link').addEventListener('click', (e) => {
+            const copyLinkBtn = card.querySelector('.btn-copy-link');
+            const copyLinkBtnHTML = copyLinkBtn.innerHTML;
+            copyLinkBtn.addEventListener('click', (e) => {
                 navigator.clipboard.writeText(entry.link).then(() => {
                     showToast('Link copied to clipboard!');
+                    animateButtonFeedback(copyLinkBtn, copyLinkBtnHTML);
                 }).catch(err => {
                     console.error('Copy failed', err);
                     showToast('Failed to copy link');
@@ -627,4 +705,71 @@ function showToast(message) {
     toastTimeout = setTimeout(() => {
         DOM.toast.classList.add('hidden');
     }, 3000);
+}
+
+// ==========================================================================
+// UX HELPERS: SEARCH HIGHLIGHTING, RELATIVE TIME, COPY FEEDBACK
+// ==========================================================================
+
+function highlightTextNodes(element, query) {
+    if (!query) return;
+    const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
+    const walk = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
+    const textNodes = [];
+    while (walk.nextNode()) {
+        textNodes.push(walk.currentNode);
+    }
+    
+    textNodes.forEach(node => {
+        if (node.parentNode && (node.parentNode.tagName === 'CODE' || node.parentNode.tagName === 'MARK')) {
+            return;
+        }
+        
+        const textVal = node.nodeValue;
+        if (textVal.match(regex)) {
+            const span = document.createElement('span');
+            span.innerHTML = textVal.replace(regex, '<mark class="highlight">$1</mark>');
+            node.parentNode.replaceChild(span, node);
+        }
+    });
+}
+
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getRelativeDateString(updatedStr, dateStr) {
+    const dateObj = new Date(updatedStr || dateStr);
+    if (isNaN(dateObj.getTime())) return '';
+    
+    const now = new Date();
+    const d1 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const d2 = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+    
+    const diffTime = d1 - d2;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays > 1 && diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays >= 7 && diffDays < 14) return '1 week ago';
+    if (diffDays >= 14 && diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    if (diffDays >= 30 && diffDays < 60) return '1 month ago';
+    if (diffDays >= 60) return `${Math.floor(diffDays / 30)} months ago`;
+    return '';
+}
+
+function animateButtonFeedback(button, originalHTML) {
+    button.classList.add('copied');
+    button.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        <span style="color: #10b981; font-weight: 600;">Copied!</span>
+    `;
+    
+    setTimeout(() => {
+        button.classList.remove('copied');
+        button.innerHTML = originalHTML;
+    }, 1500);
 }
