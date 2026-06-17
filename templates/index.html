@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BigQuery Release Notes Explorer</title>
+    <meta name="description" content="A premium, clean interface for exploring Google BigQuery release notes, filtering updates, and sharing them to Twitter / X.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Main CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231a73e8'%3E%3Cpath d='M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM19 18H6c-2.21 0-4-1.79-4-4 0-2.05 1.53-3.76 3.56-3.97l1.07-.11.5-.95C8.08 7.14 9.94 6 12 6c2.62 0 4.88 1.86 5.39 4.43l.3 1.5 1.53.11c1.56.1 2.78 1.41 2.78 2.96 0 1.65-1.35 3-3 3z'/%3E%3C/svg%3E">
+</head>
+<body class="theme-dark">
+    <!-- App Container -->
+    <div class="app-container">
+        
+        <!-- Navigation Bar -->
+        <header class="app-header">
+            <div class="logo-container">
+                <svg class="app-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32">
+                    <defs>
+                        <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#4f46e5" />
+                            <stop offset="100%" stop-color="#06b6d4" />
+                        </linearGradient>
+                    </defs>
+                    <path fill="url(#logoGrad)" d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
+                    <path fill="#ffffff" d="M12 9v4H8v2h8v-6h-4z" opacity="0.9" />
+                </svg>
+                <div class="title-group">
+                    <h1 id="app-title">BigQuery Release Explorer</h1>
+                    <p class="subtitle">Real-time Google Cloud Updates</p>
+                </div>
+            </div>
+            
+            <div class="header-actions">
+                <div class="status-indicator">
+                    <span class="status-dot green"></span>
+                    <span id="status-text" class="status-msg">Loading feed...</span>
+                </div>
+                
+                <button id="btn-theme-toggle" class="btn btn-icon btn-secondary" title="Toggle Theme" aria-label="Toggle Theme">
+                    <!-- Sun Icon (shown in dark mode) -->
+                    <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                    <!-- Moon Icon (shown in light mode) -->
+                    <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                </button>
+                
+                <button id="btn-refresh" class="btn btn-primary btn-with-icon" title="Refresh Release Notes">
+                    <svg id="refresh-icon" class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <polyline points="1 20 1 14 7 14"></polyline>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                    </svg>
+                    <span class="refresh-spinner hidden" id="refresh-spinner"></span>
+                    <span id="btn-refresh-text">Refresh</span>
+                </button>
+            </div>
+        </header>
+        
+        <!-- Main Layout -->
+        <main class="app-main">
+            <!-- Sidebar Panel (Filters and Statistics) -->
+            <aside class="sidebar-panel">
+                
+                <!-- Search Box -->
+                <div class="panel-section">
+                    <h2 class="section-title">Search & Filter</h2>
+                    <div class="search-wrapper">
+                        <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="text" id="search-input" placeholder="Search update description..." autocomplete="off">
+                        <button id="btn-clear-search" class="btn-clear hidden" title="Clear search">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Filter Types -->
+                <div class="panel-section">
+                    <div class="section-header-inline">
+                        <h3 class="section-subtitle">Filter by Type</h3>
+                        <button id="btn-clear-filters" class="link-btn hidden">Reset</button>
+                    </div>
+                    <div class="type-filter-group" id="type-filters-container">
+                        <!-- Filled dynamically -->
+                        <button class="filter-chip active" data-type="all">All Updates</button>
+                        <button class="filter-chip" data-type="Feature">Features</button>
+                        <button class="filter-chip" data-type="Announcement">Announcements</button>
+                        <button class="filter-chip" data-type="Issue">Issues</button>
+                        <button class="filter-chip" data-type="Breaking">Breaking Changes</button>
+                        <button class="filter-chip" data-type="Change">Changes</button>
+                        <button class="filter-chip" data-type="Deprecation">Deprecations</button>
+                        <button class="filter-chip" data-type="General">General</button>
+                    </div>
+                </div>
+                
+                <!-- Stats Board -->
+                <div class="panel-section stats-section">
+                    <h2 class="section-title">Feed Insights</h2>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <span class="stat-val" id="stat-total-dates">-</span>
+                            <span class="stat-lbl">Update Days</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-val" id="stat-total-updates">-</span>
+                            <span class="stat-lbl">Individual Notes</span>
+                        </div>
+                    </div>
+                    <div class="stats-breakdown" id="stats-breakdown-list">
+                        <!-- Breakdown of types injected dynamically -->
+                    </div>
+                </div>
+            </aside>
+            
+            <!-- Feed Content Area -->
+            <section class="feed-container">
+                <!-- Feed Header Actions -->
+                <div class="feed-header">
+                    <div class="feed-title-info">
+                        <h2 id="feed-results-title">Release Timeline</h2>
+                        <span class="results-count" id="results-count-badge">No entries</span>
+                    </div>
+                    <div class="feed-sorting">
+                        <label for="sort-select">Sort:</label>
+                        <select id="sort-select" class="custom-select">
+                            <option value="newest" selected>Newest First</option>
+                            <option value="oldest">Oldest First</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Timeline Feed -->
+                <div class="timeline" id="timeline-feed">
+                    <!-- Skeleton Loader initially visible -->
+                    <div class="skeleton-entry">
+                        <div class="skeleton-date"></div>
+                        <div class="skeleton-card">
+                            <div class="skeleton-header"></div>
+                            <div class="skeleton-body"></div>
+                            <div class="skeleton-footer"></div>
+                        </div>
+                        <div class="skeleton-card">
+                            <div class="skeleton-header"></div>
+                            <div class="skeleton-body"></div>
+                            <div class="skeleton-footer"></div>
+                        </div>
+                    </div>
+                    <div class="skeleton-entry">
+                        <div class="skeleton-date"></div>
+                        <div class="skeleton-card">
+                            <div class="skeleton-header"></div>
+                            <div class="skeleton-body"></div>
+                            <div class="skeleton-footer"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Empty State -->
+                <div class="empty-state hidden" id="empty-state">
+                    <svg class="empty-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="8" y1="12" x2="16" y2="12"></line>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    <h3>No Release Notes Match Your Search</h3>
+                    <p>Try resetting filters or adjusting search terms to see updates.</p>
+                    <button class="btn btn-secondary" id="btn-reset-all">Reset Filters</button>
+                </div>
+                
+                <!-- Fetch Error State -->
+                <div class="error-state hidden" id="error-state">
+                    <svg class="error-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    <h3>Failed to Fetch Release Notes</h3>
+                    <p id="error-message">The feed content couldn't be loaded at this time. Check your connection or retry.</p>
+                    <button class="btn btn-primary" id="btn-error-retry">Retry Fetching</button>
+                </div>
+            </section>
+        </main>
+        
+        <!-- Premium Footer -->
+        <footer class="app-footer-bar">
+            <p>Data sourced from official Google Cloud RSS Feeds &bull; Created with Python Flask &amp; Vanilla JS</p>
+        </footer>
+    </div>
+    
+    <!-- Toast Notification (Copied link, etc.) -->
+    <div id="toast-notification" class="toast hidden">
+        <span id="toast-message">Message copied!</span>
+    </div>
+
+    <!-- Tweet Composer Modal -->
+    <div class="modal-backdrop hidden" id="tweet-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <svg class="x-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                    </svg>
+                    <h3>Tweet Composer</h3>
+                </div>
+                <button class="btn-close-modal" id="btn-close-tweet" aria-label="Close modal">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="tweet-card">
+                    <div class="tweet-author-info">
+                        <div class="tweet-avatar">BQ</div>
+                        <div class="tweet-names">
+                            <span class="tweet-name">BigQuery Updates</span>
+                            <span class="tweet-handle">@bq_release_bot</span>
+                        </div>
+                    </div>
+                    
+                    <div class="tweet-textarea-wrapper">
+                        <textarea id="tweet-textarea" rows="6" maxlength="280" placeholder="What's happening?"></textarea>
+                    </div>
+                    
+                    <!-- Meta customization options inside modal -->
+                    <div class="tweet-options">
+                        <label class="custom-checkbox">
+                            <input type="checkbox" id="chk-include-link" checked>
+                            <span class="checkmark"></span>
+                            Include original release link
+                        </label>
+                        <label class="custom-checkbox">
+                            <input type="checkbox" id="chk-include-tags" checked>
+                            <span class="checkmark"></span>
+                            Include hashtags (#BigQuery #GCP)
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <div class="char-count-wrapper">
+                    <span id="char-count">0</span> / 280
+                    <div class="char-progress-bar">
+                        <div class="char-progress-fill" id="char-progress"></div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" id="btn-tweet-cancel">Cancel</button>
+                    <button class="btn btn-accent btn-with-icon" id="btn-tweet-submit">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                        </svg>
+                        <span>Tweet</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
